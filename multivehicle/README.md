@@ -23,7 +23,7 @@ cd src/multivehicle_sim
 
 cd ../examples/multivehicle
 ./build.bash
-./run.bash multivehicle_examples:humble
+./run.bash multivehicle_examples:jazzy
 ```
 
 Inside the container:

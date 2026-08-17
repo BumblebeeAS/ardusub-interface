@@ -3,15 +3,15 @@
 set -e
 
 image_name=multivehicle_examples
-image_tag=humble
+image_tag=jazzy
 
 if [ ! -f "docker/Dockerfile" ]; then
     echo "Err: docker/Dockerfile not found. Run from src/examples/multivehicle."
     exit 1
 fi
 
-if ! docker image inspect multivehicle_sim:humble >/dev/null 2>&1; then
-    echo "Err: base image multivehicle_sim:humble not found."
+if ! docker image inspect multivehicle_sim:jazzy >/dev/null 2>&1; then
+    echo "Err: base image multivehicle_sim:jazzy not found."
     echo "Build it first from src/multivehicle_sim."
     exit 1
 fi

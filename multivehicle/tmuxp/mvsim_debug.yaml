@@ -24,8 +24,8 @@ shell_command_before:
   # NVIDIA PRIME render offload — auto-enabled when an NVIDIA GPU is passed through
   # (rocker --nvidia mounts /dev/nvidia0). Harmless / skipped on non-NVIDIA hosts.
   - '[ -e /dev/nvidia0 ] && export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia || true'
-  - source /opt/ros/humble/setup.bash
-  - '[ -f "$WS_DIR/install/setup.bash" ] && source "$WS_DIR/install/setup.bash"'
+  - source /opt/ros/jazzy/setup.bash
+  - 'if [ -f "$WS_DIR/install/setup.bash" ]; then source "$WS_DIR/install/setup.bash"; else echo "WARNING: $WS_DIR/install/setup.bash not found - build first: colcon build --symlink-install"; fi'
   - cd "$WS_DIR"
 
 windows:
@@ -87,7 +87,7 @@ windows:
           - cmd: ros2 launch bb_robotx_dashboard dashboard.launch.py
             enter: false
       - shell_command:
-          - cmd: ros2 launch bb_robotx_dashboard robotx_2026_sim.launch.py bridges_pkg:=multivehicle_sim models_pkg:=bb_worlds auv_name:=bluerov auv_pose_topic:=/bluerov/odom asv_name:=blueboat asv_pose_topic:=/blueboat/odom uav_name:=x500 uav_pose_topic:=/x500/odom
+          - cmd: ros2 launch bb_robotx_dashboard robotx_2026_sim.launch.py bridges_pkg:=robotx_gz models_pkg:=bb_worlds auv_name:=bluerov auv_pose_topic:=/bluerov/odom asv_name:=blueboat asv_pose_topic:=/blueboat/odom uav_name:=x500 uav_pose_topic:=/x500/odom
             enter: false
 
   # 6. Debug
