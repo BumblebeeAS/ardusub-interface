@@ -12,7 +12,7 @@
 #   2) bluerov    — attach the ArduSub BlueROV2 to the running world
 #   3) boat       — spawn the BlueBoat USV into the running world
 #   4) drone      — uXRCE-DDS agent + PX4 SITL x500 + gz<->ROS bridge (-> /x500/odom)
-#   5) dashboard  — web backend (:8080) + sim-side LED/incident bridges
+#   5) dashboard  — MQTT broker (:1883) + web backend (:8080) + monitor + sim-side bridges
 #
 #   WS_DIR=/root/HOST/my_ws tmuxp load .../mvsim.yaml
 
@@ -80,17 +80,24 @@ windows:
           - cmd: ros2 launch multivehicle_sim uav_gz.launch.py model_name:=x500_mono_cam_1
             enter: false
 
-  # 5. Dashboard — fake vehicle (top, RoboCommand TCP server on :9000 the backend
-  #    connects to), web backend (middle, http://localhost:8080), and the sim-side
+  # 5. Dashboard — RoboCommand MQTT broker (:1883), fake per-vehicle telemetry
+  #    (ROS 2 topics the backend relays to MQTT), web backend
+  #    (http://localhost:8080), a raw-frame monitor, and the sim-side
   #    LED/incident bridges (bottom) tracking all three vehicles' /…/odom.
   - window_name: dashboard
     layout: even-vertical
     panes:
       - shell_command:
-          - cmd: ros2 run bb_robotx_dashboard fake_vehicle_publisher --port 9000
+          - cmd: mosquitto -c /etc/mosquitto/mosquitto.conf -v
+            enter: false
+      - shell_command:
+          - cmd: ros2 run bb_robotx_dashboard fake_vehicle_publisher
             enter: false
       - shell_command:
           - cmd: ros2 launch bb_robotx_dashboard dashboard.launch.py
+            enter: false
+      - shell_command:
+          - cmd: mosquitto_sub -h localhost -t 'robocommand/robotx/#' -v
             enter: false
       - shell_command:
           - cmd: ros2 launch bb_robotx_dashboard robotx_2026_sim.launch.py bridges_pkg:=robotx_gz models_pkg:=bb_worlds auv_name:=bluerov auv_pose_topic:=/bluerov/odom asv_name:=blueboat asv_pose_topic:=/blueboat/odom uav_name:=x500 uav_pose_topic:=/x500/odom

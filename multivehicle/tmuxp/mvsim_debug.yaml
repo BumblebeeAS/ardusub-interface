@@ -10,7 +10,7 @@
 #   2) bluerov    — BlueROV2 + ArduSub/MAVROS, then its square mission BT
 #   3) boat       — BlueBoat spawn + control stack + square mission
 #   4) drone      — XRCE agent + PX4 SITL x500 + gz bridge + offboard demo BT
-#   5) dashboard  — web backend (:8080) + sim-side LED/incident bridges
+#   5) dashboard  — MQTT broker (:1883) + web backend (:8080) + monitor + sim-side bridges
 #   6) debug      — free shell + Foxglove bridge
 #
 # Workspace dir defaults to /root/HOST/mvsim_ws and the PX4 SITL install root to
@@ -84,15 +84,21 @@ windows:
           - cmd: ros2 launch multivehicle_examples px4_offboard.launch.py
             enter: false
 
-  # 5. Dashboard
+  # 5. Dashboard — broker, fake ROS telemetry, backend, MQTT monitor, bridges
   - window_name: dashboard
     layout: even-vertical
     panes:
       - shell_command:
-          - cmd: ros2 run bb_robotx_dashboard fake_vehicle_publisher --port 9000
+          - cmd: mosquitto -c /etc/mosquitto/mosquitto.conf -v
+            enter: false
+      - shell_command:
+          - cmd: ros2 run bb_robotx_dashboard fake_vehicle_publisher
             enter: false
       - shell_command:
           - cmd: ros2 launch bb_robotx_dashboard dashboard.launch.py
+            enter: false
+      - shell_command:
+          - cmd: mosquitto_sub -h localhost -t 'robocommand/robotx/#' -v
             enter: false
       - shell_command:
           - cmd: ros2 launch bb_robotx_dashboard robotx_2026_sim.launch.py bridges_pkg:=robotx_gz models_pkg:=bb_worlds auv_name:=bluerov auv_pose_topic:=/bluerov/odom asv_name:=blueboat asv_pose_topic:=/blueboat/odom uav_name:=x500 uav_pose_topic:=/x500/odom
