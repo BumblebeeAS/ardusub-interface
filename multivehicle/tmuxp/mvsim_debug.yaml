@@ -12,6 +12,11 @@
 #   4) drone      — XRCE agent + PX4 SITL x500 + gz bridge + offboard demo BT
 #   5) dashboard  — web backend (:8080) + sim-side LED/incident bridges
 #   6) debug      — free shell + Foxglove bridge
+#
+# Workspace dir defaults to /root/HOST/mvsim_ws and the PX4 SITL install root to
+# /root/px4 (the image exports PX4_DIR). Override either by exporting it before
+# loading, e.g.:
+#   WS_DIR=/root/HOST/my_ws tmuxp load .../mvsim_debug.yaml
 
 session_name: mvsim
 
@@ -21,6 +26,9 @@ global_options:
 
 shell_command_before:
   - 'WS_DIR="${WS_DIR:-/root/HOST/mvsim_ws}"'
+  # PX4 SITL install root; exported by the image, defaulted here so the session
+  # still works on an older image that predates the ENV.
+  - 'PX4_DIR="${PX4_DIR:-/root/px4}"'
   # NVIDIA PRIME render offload — auto-enabled when an NVIDIA GPU is passed through
   # (rocker --nvidia mounts /dev/nvidia0). Harmless / skipped on non-NVIDIA hosts.
   - '[ -e /dev/nvidia0 ] && export __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia || true'
@@ -67,7 +75,7 @@ windows:
           - cmd: MicroXRCEAgent udp4 -p 8888
             enter: false
       - shell_command:
-          - cmd: PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4010 PX4_UXRCE_DDS_NS=x500 PX4_PARAM_UXRCE_DDS_SYNCT=0 PX4_GZ_MODEL_POSE="47.40,-388.95,3.85,0,0.0" /root/px4/px4_sitl/bin/px4 -w /root/px4/px4_sitl/romfs -i 1
+          - cmd: PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4010 PX4_UXRCE_DDS_NS=x500 PX4_PARAM_UXRCE_DDS_SYNCT=0 PX4_GZ_MODEL_POSE="47.40,-388.95,3.85,0,0.0" ${PX4_DIR}/px4_sitl/bin/px4 -w ${PX4_DIR}/px4_sitl/romfs -i 1
             enter: false
       - shell_command:
           - cmd: ros2 launch multivehicle_sim uav_gz.launch.py model_name:=x500_mono_cam_1
