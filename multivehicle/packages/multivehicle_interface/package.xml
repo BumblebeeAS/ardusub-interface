@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>multivehicle_interface</name>
+  <version>0.1.0</version>
+  <description>
+    Autopilot (ArduSub SITL + MAVROS) interface and Gazebo odometry adapters for
+    the multivehicle simulator.
+  </description>
+  <maintainer email="shaolianghe0.0@gmail.com">MonkeScripts</maintainer>
+  <license>MIT</license>
+
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>tf2_msgs</depend>
+  <depend>tf2_ros</depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>mavros</exec_depend>
+  <exec_depend>mavros_extras</exec_depend>
+  <exec_depend>mavros_msgs</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

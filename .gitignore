@@ -1,3 +1,16 @@
-.vscode
-*.bin
+# editors
+.vscode/
+.idea/
+
+# python
+*.pyc
 __pycache__/
+*.egg-info/
+
+# colcon
+build/
+install/
+log/
+
+# ardupilot SITL runtime artifacts
+*.bin
