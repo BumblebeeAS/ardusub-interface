@@ -53,7 +53,7 @@ windows:
           - cmd: ros2 launch multivehicle_sim bluerov.launch.py
             enter: false
       - shell_command:
-          - cmd: ros2 launch bluerov_tasks bluerov_square_bt.launch.py
+          - cmd: sleep 5 & ros2 launch bluerov_tasks bluerov_square_bt.launch.py
             enter: false
 
   # 3. BlueBoat
@@ -64,7 +64,7 @@ windows:
           - cmd: ros2 launch multivehicle_sim boat.launch.py
             enter: false
       - shell_command:
-          - cmd: ros2 launch multivehicle_examples boat_control.launch.py use_mission:=true
+          - cmd: sleep 5 & ros2 launch multivehicle_examples boat_control.launch.py use_mission:=true
             enter: false
 
   # 4. PX4 x500 drone
@@ -81,7 +81,7 @@ windows:
           - cmd: ros2 launch multivehicle_sim uav_gz.launch.py model_name:=x500_mono_cam_1
             enter: false
       - shell_command:
-          - cmd: ros2 launch multivehicle_examples px4_offboard.launch.py
+          - cmd: sleep 5 & ros2 launch multivehicle_examples px4_offboard.launch.py
             enter: false
 
   # 5. Dashboard — broker, fake ROS telemetry, backend, MQTT monitor, bridges
@@ -98,7 +98,7 @@ windows:
           - cmd: ros2 launch bb_robotx_dashboard dashboard.launch.py
             enter: false
       - shell_command:
-          - cmd: mosquitto_sub -h localhost -t 'robocommand/robotx/#' -v
+          - cmd: ros2 run bb_robotx_dashboard mqtt_spy
             enter: false
       - shell_command:
           - cmd: ros2 launch bb_robotx_dashboard robotx_2026_sim.launch.py bridges_pkg:=robotx_gz models_pkg:=bb_worlds auv_name:=bluerov auv_pose_topic:=/bluerov/odom asv_name:=blueboat asv_pose_topic:=/blueboat/odom uav_name:=x500 uav_pose_topic:=/x500/odom

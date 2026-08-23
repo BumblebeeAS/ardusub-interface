@@ -97,7 +97,7 @@ windows:
           - cmd: ros2 launch bb_robotx_dashboard dashboard.launch.py
             enter: false
       - shell_command:
-          - cmd: mosquitto_sub -h localhost -t 'robocommand/robotx/#' -v
+          - cmd: ros2 run bb_robotx_dashboard mqtt_spy
             enter: false
       - shell_command:
           - cmd: ros2 launch bb_robotx_dashboard robotx_2026_sim.launch.py bridges_pkg:=robotx_gz models_pkg:=bb_worlds auv_name:=bluerov auv_pose_topic:=/bluerov/odom asv_name:=blueboat asv_pose_topic:=/blueboat/odom uav_name:=x500 uav_pose_topic:=/x500/odom
