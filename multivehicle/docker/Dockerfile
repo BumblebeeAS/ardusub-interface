@@ -116,7 +116,8 @@ RUN /opt/ros/jazzy/lib/mavros/install_geographiclib_datasets.sh
 # Pinned protoc 33 baked offline to /opt/protoc (supports edition = "2024").
 # Installed off the system path so it never shadows /usr/bin/protoc;
 # setup_dashboard.sh wires it into the dashboard's third_party/protoc/.
-ARG PROTOC_VERSION=33.0
+# 35.x matches the RobotX_2026 upstream generation (7.35 gencode).
+ARG PROTOC_VERSION=35.1
 RUN <<EOF
 arch="$(uname -m)"
 case "${arch}" in
@@ -139,7 +140,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
         'uvicorn[standard]' \
         'pydantic' \
         'pydantic-settings' \
-        'protobuf>=6.33,<8' \
+        'protobuf>=7.35,<8' \
         'tmuxp'
 
 # --------------------------------------------------------------------------- #
@@ -289,6 +290,8 @@ COPY --from=ardupilot-builder /root/auv/ardupilot/build/sitl/bin/ardusub /usr/lo
 # mission_planner_2). Kept in `final` rather than `base` on purpose: touching this
 # list must not invalidate the px4-builder / ardupilot-builder caches.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    mosquitto \
+    mosquitto-clients \
     python3-transforms3d \
     ros-jazzy-navigation2 \
     ros-jazzy-nav2-bringup \
@@ -299,16 +302,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip3 install --no-cache-dir --break-system-packages mavsdk
+# RoboCommand dev broker config (explicit listener; anonymous like upstream's
+# RobotX_2026 reference broker). Note Debian's packaged mosquitto.conf sets
+# `persistence true`, so retained messages survive broker restarts here —
+# unlike upstream's compose broker.
+COPY config/mosquitto-robocommand.conf /etc/mosquitto/conf.d/robocommand.conf
+
+RUN pip3 install --no-cache-dir --break-system-packages \
+        mavsdk \
+        'paho-mqtt>=2.1,<3'
 
 COPY scripts/setup_dashboard.sh /usr/local/bin/setup_dashboard.sh
 RUN chmod +x /usr/local/bin/setup_dashboard.sh
 RUN cat >> /root/.bashrc <<'EOF'
 
-# bb_robotx_dashboard runtime env
-export ROBOCOMMAND_HOST=localhost
-export ROBOCOMMAND_PORT=9000
-export ROBOCOMMAND_TEAM_ID=42
+# bb_robotx_dashboard runtime env (RobotX 2026 RoboCommand over MQTT)
+export MQTT_BROKER_HOST=localhost
+export MQTT_BROKER_PORT=1883
+export ROBOTX_TEAM_ID=RNRX
+# JSON — pydantic-settings parses complex types as JSON, not CSV.
+export ROBOTX_VEHICLE_IDS='["USV1","UUV1","UAV1"]'
+export HEARTBEAT_PERIOD_S=1.0
+export AUTO_ACK_COMMANDS=true
 export DASHBOARD_LISTEN_HOST=0.0.0.0
 export DASHBOARD_LISTEN_PORT=8080
 export DASHBOARD_ADMIN_SECRET=bumblebee
