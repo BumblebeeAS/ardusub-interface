@@ -18,9 +18,9 @@ flowchart LR
 | --- | --- |
 | `py_trees` Runtime | Executes node logic, transitions states, and ticks behaviours |
 | `StructuredSnapshotVisitor` | Profiles execution durations, interval spans, retry attempts, and subtree timing |
-| `BehaviourTreeSnapshot.msg` | Top-level message containing ROS 2 header, tick count, text backup, and node arrays |
-| `BehaviourNodeSnapshot.msg` | Per-node snapshot with hierarchical paths, status enums, timing metrics, and retry state |
-| `AttemptSnapshot.msg` | Granular timing and interval metrics per retry attempt iteration (`x0`, `x1`, ...) |
+| `mission_planner_interfaces/msg/BehaviourTreeSnapshot.msg` | Top-level message containing ROS 2 header, tick count, text backup, and node arrays |
+| `mission_planner_interfaces/msg/BehaviourNodeSnapshot.msg` | Per-node snapshot with hierarchical paths, status enums, timing metrics, and retry state |
+| `mission_planner_interfaces/msg/AttemptSnapshot.msg` | Granular timing and status metrics per retry attempt path (`x0`, `x1`, `x0,1`, ...) |
 | `parsePyTreeSnapshot` | Universal parser ingesting ROS 2 messages or fallback raw text into `ParsedTreeNode[]` |
 | Panel State & Cache | Merges incoming frames with cached persistent tree state for uninterrupted UI rendering |
 
@@ -28,9 +28,11 @@ flowchart LR
 
 ## Message Schema Definitions
 
-### 1. `tree_profiler_msgs/msg/AttemptSnapshot.msg`
+### 1. `mission_planner_interfaces/msg/AttemptSnapshot.msg`
 ```text
 uint32 attempt_index
+uint32[] attempt_indices
+string attempt_key
 string ticks
 string seconds
 uint32 ticks_num
@@ -47,7 +49,7 @@ uint8 status
 string status_str
 ```
 
-### 2. `tree_profiler_msgs/msg/BehaviourNodeSnapshot.msg`
+### 2. `mission_planner_interfaces/msg/BehaviourNodeSnapshot.msg`
 ```text
 # Node status constants
 uint8 STATUS_INVALID = 0
@@ -98,7 +100,7 @@ string raw_line
 AttemptSnapshot[] attempt_history
 ```
 
-### 3. `tree_profiler_msgs/msg/BehaviourTreeSnapshot.msg`
+### 3. `mission_planner_interfaces/msg/BehaviourTreeSnapshot.msg`
 ```text
 std_msgs/Header header
 uint32 global_tick_count
@@ -127,17 +129,22 @@ string raw_text_tree
   - `/_/`: Parallel composite
   - `-^-`: Decorator / Retry node
   - `-->`: Action / Condition behaviour leaf
-- **Retry Attempt Partitioning**: Attempt snapshots are indexed starting at `0` (`x0`, `x1`, ...). The Retry decorator tracks cumulative span across all attempts while child nodes partition metrics per attempt index.
-- **Backward Compatibility**: `parsePyTreeSnapshot` accepts ROS 2 message objects, legacy `{ data: string }` wrappers, and raw string logs interchangeably without breaking downstream consumer code.
+- **Retry Attempt Partitioning**: `attempt_index` is the innermost retry index. `attempt_indices` preserves the complete outer-to-inner retry path, and `attempt_key` is its comma-separated lookup key (`0`, `0,1`, ...). The Retry decorator tracks cumulative span while retry-aware nodes expose per-path metrics and status.
+- **Latched Status**: Ordinary nodes retain their last terminal `SUCCESS` or `FAILURE` when they become unvisited on later ticks. Nodes inside or representing a Retry decorator retain status independently for each attempt path. `RUNNING` remains the current live state.
+- **FailureIsSuccess**: A `FailureIsSuccess` decorator is reported as its concrete `behaviour_type`; the profiler identifies and displays it explicitly while preserving the child failure status.
+- **Transport**: `StructuredSnapshotVisitor` publishes `mission_planner_interfaces/msg/BehaviourTreeSnapshot` on the private `~/tree_snapshot` topic. `raw_text_tree` is a human-readable backup, not the primary transport.
+- **Backward Compatibility**: `parsePyTreeSnapshot` accepts structured ROS 2 message objects, legacy `{ data: string }` wrappers, raw tree strings, and node arrays.
 
 ---
 
 ## Hierarchical Traversal & Metric Aggregation
 
-1. Before emitting the snapshot, `_accumulate_times()` traverses the behavior tree from the bottom up to calculate span, subtree, and self durations for every node.
-2. `metrics_map[node.id]` stores the timing state of every node (both visited and unvisited) across the entire tree.
-3. `_build_paths_recursive()` establishes tree depth and assigns unique `/parent/child` IDs before serialization.
-4. `finalise()` iterates through all tree nodes, attaches attempt histories, formats `raw_line` representations, and publishes `BehaviourTreeSnapshot.msg`.
+1. `initialise()` advances `global_tick_count` and records the current ROS clock time for the tick.
+2. `run()` records execution intervals and retry-path status for each visited node.
+3. Before emitting the snapshot, `_accumulate_times()` traverses the behavior tree from the bottom up to calculate span, subtree, and self durations for every node.
+4. `metrics_map[node.id]` stores cumulative timing and per-attempt metrics for the tree.
+5. `_build_paths_recursive()` establishes tree depth and assigns unique `/parent/child` IDs before serialization.
+6. `finalise()` resolves latched/current status, attaches attempt histories, formats `raw_line` representations, and publishes `BehaviourTreeSnapshot.msg`.
 
 ---
 
@@ -148,7 +155,7 @@ string raw_text_tree
 ros2 topic echo /tree_snapshot_publisher/tree_snapshot --once
 
 # Inspect ROS 2 message type definition
-ros2 interface show tree_profiler_msgs/msg/BehaviourTreeSnapshot
+ros2 interface show mission_planner_interfaces/msg/BehaviourTreeSnapshot
 
 # Check publication frequency
 ros2 topic hz /tree_snapshot_publisher/tree_snapshot
@@ -159,5 +166,7 @@ ros2 topic echo /clock --once
 
 - **Only root node shows metrics**: Ensure `_accumulate_times` passes `metrics_map` recursively through all children so child nodes do not default to empty metrics.
 - **Foxglove displays `[object Object]`**: Verify `parsePyTreeSnapshot` is receiving the message object directly rather than coercing with `String(rawMsg)`.
-- **Timing shows `0.00s` while ticks increment**: Ensure `/clock` is publishing and the ROS 2 node is configured with `use_sim_time:=True`.
+- **Timing shows `0.00s` while ticks increment**: Ensure `/clock` is publishing and the ROS 2 node is configured with `use_sim_time:=True`. A one-tick interval can legitimately round to `0.00s`.
 - **Node IDs mismatch across ticks**: Ensure duplicate sibling names are not reordered dynamically; use static names or verify `#1`, `#2` suffix preservation in `_build_paths_recursive`.
+- **A completed node becomes unvisited**: Check that the same `StructuredSnapshotVisitor` instance remains attached to the tree and that the node ID is stable. Terminal status is latched in the visitor, not reconstructed from the current `visited` set.
+- **Retry status appears on the wrong attempt**: Inspect `attempt_indices` and `attempt_key`; nested retries require the full path, not only `attempt_index`.
